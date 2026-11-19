@@ -1,61 +1,308 @@
 
-participants:participants,createdAt:serverTimestamp()});
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Me & You Chat</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;min-height:100vh;padding:18px;
+ display:flex;justify-content:center;align-items:center;
+ background:#100b1c;color:white;font-family:Arial,sans-serif
+}
+.container{
+ width:100%;max-width:430px;padding:24px;
+ background:#1d1530;border:1px solid #7045a5;
+ border-radius:20px;box-shadow:0 0 25px #542b8050
+}
+h1{text-align:center;color:#c59aff}
+p{text-align:center;color:#c9bddb}
+input{
+ width:100%;padding:14px;margin:9px 0;
+ border:1px solid #7653a5;border-radius:10px;
+ background:#100b1c;color:white;font-size:15px
+}
+button{
+ width:100%;padding:14px;margin-top:10px;
+ border:0;border-radius:10px;background:#9254db;
+ color:white;font-size:15px;font-weight:bold
+}
+.secondary{background:#352448}
+.hidden{display:none!important}
+#messages{
+ height:300px;overflow-y:auto;background:#100b1c;
+ padding:10px;border-radius:10px;margin-top:12px
+}
+.msg{
+ padding:10px;margin:8px 0;border-radius:10px;
+ background:#382451;overflow-wrap:anywhere
+}
+.mine{background:#7540a9;margin-left:20%}
+#status{font-size:13px;overflow-wrap:anywhere}
+.small{font-size:12px;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>💜 Me & You Chat</h1>
+<p>Private Messaging</p>
+
+<div id="authBox">
+<h3 id="formTitle">Login</h3>
+<input id="email" type="email" placeholder="তোমার Gmail">
+<input id="password" type="password" placeholder="Password">
+<button id="mainBtn">Login</button>
+<button id="googleBtn" class="secondary">Continue with Google</button>
+<button id="switchBtn" class="secondary">Create Account</button>
+</div>
+
+<div id="chatHome" class="hidden">
+<p id="userInfo" class="small"></p>
+<button id="copyUID" class="secondary">Copy My UID</button>
+<input id="partnerUID" placeholder="অন্য ব্যক্তির Firebase UID">
+<button id="startBtn">Start Private Chat</button>
+
+<div id="chatArea" class="hidden">
+<h3>💬 Private Chat</h3>
+<div id="messages"></div>
+<input id="messageInput" maxlength="2000" placeholder="মেসেজ লিখো">
+<button id="sendBtn">Send Message</button>
+</div>
+
+<button id="logoutBtn" class="secondary">Logout</button>
+</div>
+
+<p id="status"></p>
+</div>
+
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+ getAuth,
+ createUserWithEmailAndPassword,
+ signInWithEmailAndPassword,
+ GoogleAuthProvider,
+ signInWithRedirect,
+ getRedirectResult,
+ onAuthStateChanged,
+ signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+import {
+ getFirestore,
+ doc,
+ getDoc,
+ setDoc,
+ collection,
+ addDoc,
+ onSnapshot,
+ query,
+ orderBy,
+ serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+ apiKey: "AIzaSyCJhUwn5SE3jtNZ4EWSNAuvtC9xhts0Sus",
+ authDomain: "me-and-you-chat-29d4e.firebaseapp.com",
+ projectId: "me-and-you-chat-29d4e",
+ storageBucket: "me-and-you-chat-29d4e.firebasestorage.app",
+ messagingSenderId: "304987066409",
+ appId: "1:304987066409:web:55e5a4a22b199a3e998c38",
+ measurementId: "G-S8DTFJ0691"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $ = id => document.getElementById(id);
+
+let isRegister = false;
+let currentChat = null;
+let stopMessages = null;
+
+function status(text){
+ $("status").textContent = text;
+}
+
+$("switchBtn").onclick = () => {
+ isRegister = !isRegister;
+ $("formTitle").textContent =
+  isRegister ? "Create Account" : "Login";
+ $("mainBtn").textContent =
+  isRegister ? "Register" : "Login";
+ $("switchBtn").textContent =
+  isRegister ? "Back to Login" : "Create Account";
+};
+
+$("mainBtn").onclick = async () => {
+ const email = $("email").value.trim();
+ const password = $("password").value;
+
+ if(!email || !password){
+  status("Gmail ও Password লিখো");
+  return;
+ }
+
+ try{
+  status("Please wait...");
+  if(isRegister){
+   await createUserWithEmailAndPassword(auth,email,password);
+  }else{
+   await signInWithEmailAndPassword(auth,email,password);
   }
-
-  chatId=id;
-  $("chatArea").style.display="block";
-  $("status").textContent="Private Chat Connected";
-
-  if(stopChat)stopChat();
-
-  const q=query(
-   collection(db,"chats",id,"messages"),
-   orderBy("createdAt","asc")
-  );
-
-  stopChat=onSnapshot(q,snapshot=>{
-   $("messages").innerHTML="";
-   snapshot.forEach(item=>{
-    const data=item.data();
-    const div=document.createElement("div");
-    div.className="msg "+(
-     data.senderId===auth.currentUser.uid?"mine":""
-    );
-    div.textContent=data.text;
-    $("messages").appendChild(div);
-   });
-   $("messages").scrollTop=$("messages").scrollHeight;
-  });
-
- }catch(e){
-  $("status").textContent="Error: "+e.message;
+ }catch(error){
+  status(error.message);
  }
 };
 
-$("sendBtn").onclick=async()=>{
- const text=$("messageInput").value.trim();
- if(!text||!chatId)return;
+$("googleBtn").onclick = async () => {
+ try{
+  await signInWithRedirect(auth,new GoogleAuthProvider());
+ }catch(error){
+  status(error.message);
+ }
+};
+
+getRedirectResult(auth).catch(error=>{
+ status(error.message);
+});
+
+onAuthStateChanged(auth,user=>{
+ if(user){
+  $("authBox").classList.add("hidden");
+  $("chatHome").classList.remove("hidden");
+  $("userInfo").textContent = "তোমার UID: " + user.uid;
+ }else{
+  if(stopMessages) stopMessages();
+  currentChat = null;
+  $("authBox").classList.remove("hidden");
+  $("chatHome").classList.add("hidden");
+ }
+});
+$("copyUID").onclick = async () => {
+ try{
+  await navigator.clipboard.writeText(auth.currentUser.uid);
+  status("তোমার UID কপি হয়েছে!");
+ }catch(error){
+  status("UID কপি করা যায়নি। UID দেখে কপি করো।");
+ }
+};
+
+$("startBtn").onclick = async () => {
+ const user = auth.currentUser;
+ const other = $("partnerUID").value.trim();
+
+ if(!other){
+  status("অন্য ব্যক্তির UID লিখো");
+  return;
+ }
+
+ if(other === user.uid){
+  status("নিজের UID দেওয়া যাবে না");
+  return;
+ }
 
  try{
+  status("চ্যাট তৈরি হচ্ছে...");
+
+  const participants = [user.uid,other].sort();
+  const chatId = participants.join("_");
+  const chatRef = doc(db,"chats",chatId);
+  const snap = await getDoc(chatRef);
+
+  if(!snap.exists()){
+   await setDoc(chatRef,{
+    participants,
+    createdAt:serverTimestamp()
+   });
+  }else{
+   const saved = snap.data().participants || [];
+
+   if(!saved.includes(user.uid) || !saved.includes(other)){
+    throw new Error("এই চ্যাটে প্রবেশের অনুমতি নেই। UID যাচাই করো।");
+   }
+  }
+
+  currentChat = chatId;
+  $("chatArea").classList.remove("hidden");
+  $("messages").innerHTML = "";
+
+  if(stopMessages) stopMessages();
+
+  const messagesRef = collection(db,"chats",chatId,"messages");
+  const q = query(messagesRef,orderBy("createdAt"));
+
+  stopMessages = onSnapshot(q,snapshot=>{
+   $("messages").innerHTML = "";
+
+   snapshot.forEach(item=>{
+    const data = item.data();
+    const div = document.createElement("div");
+
+    div.className = "msg" +
+     (data.senderId === user.uid ? " mine" : "");
+
+    div.textContent = data.text;
+    $("messages").appendChild(div);
+   });
+
+   $("messages").scrollTop = $("messages").scrollHeight;
+  },error=>{
+   status("Message error: " + error.message);
+  });
+
+  status("চ্যাট চালু হয়েছে 💜");
+
+ }catch(error){
+  status(error.message);
+ }
+};
+
+$("sendBtn").onclick = async () => {
+ const user = auth.currentUser;
+ const message = $("messageInput").value.trim();
+
+ if(!message || !currentChat) return;
+
+ try{
+  $("sendBtn").disabled = true;
+
   await addDoc(
-   collection(db,"chats",chatId,"messages"),
+   collection(db,"chats",currentChat,"messages"),
    {
-    text:text,
-    senderId:auth.currentUser.uid,
+    text:message,
+    senderId:user.uid,
     createdAt:serverTimestamp()
    }
   );
-  $("messageInput").value="";
- }catch(e){
-  $("status").textContent=e.message;
+
+  $("messageInput").value = "";
+
+ }catch(error){
+  status("মেসেজ পাঠানো যায়নি: " + error.message);
+ }finally{
+  $("sendBtn").disabled = false;
  }
 };
 
-$("logoutBtn").onclick=async()=>{
- await signOut(auth);
- if(stopChat)stopChat();
- $("status").textContent="Logged out";
+$("logoutBtn").onclick = async () => {
+ if(stopMessages) stopMessages();
+ currentChat = null;
+
+ try{
+  await signOut(auth);
+  status("Logout হয়েছে");
+ }catch(error){
+  status(error.message);
+ }
 };
+
 </script>
 </body>
 </html>
